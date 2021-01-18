@@ -1,0 +1,108 @@
+<template>
+	<view class="-list-item" data-id={this.props.item.id} onclick="onclick">
+		<image class="-list-item-img" src={this.props.item.image} mode="aspectFill"></image>
+		<view class="-list-item-content">
+			<text class="-list-item-title">{this.props.item.title}</text>
+            <view class="flex1"></view>
+			<view class="-list-item-bottom">
+				<text class="-list-item-price">{'￥' + this.props.item.price}</text>
+                <text class="-list-item-delprice color_5" v-if={this.props.showOriginalPrice}>{'￥' + this.props.item.delprice}</text>
+				<view class="flex1"></view>
+				<view class="-list-item-num-box" v-if={this.props.showHot}>
+					<image class="-list-item-num-img" src={this.props.hotIcon?this.props.hotIcon:'../../images/main2/hot.png'}></image>
+					<text class="-list-item-num">{this.fixBuynum(this.props.item.buy_num)}</text>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+<script>
+	export default {
+		name: 'list-item',
+		methods: {
+            onclick(){
+                this.fire('itemClick', this.props.item);
+            },
+            fixBuynum(num){
+                if (!num) {return 0;}
+                num = parseInt(num);
+                if (num > 9999) {
+                    num = (num / 10000).toFixed(2);
+                    num = num + 'w';
+                }
+                return num;
+            }
+		}
+	}
+</script>
+<style scoped>
+.-list-item{
+    flex-direction: row;
+    align-items: center;
+    height: 120px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f8f8f8;
+    background-color: white;
+	box-sizing: border-box;
+}
+.-list-item:active{
+    opacity: 0.8;
+}
+.-list-item-img{
+    width: 120px;
+    height: 90px;
+    border-radius: 4px;
+    margin-left: 15px;
+}
+.-list-item-content{
+    flex: 1;
+    height: 100%;
+    margin-left: 12px;
+    margin-right: 15px;
+}
+.-list-item-title{
+    line-height: 22px;
+    height: 44px;
+    color: #333333;
+    font-weight: bold;
+    text-overflow: ellipsis;
+    white-space: normal;
+	overflow: hidden;
+	-webkit-line-clamp: 2;
+}
+.flex1{
+    flex: 1;
+}
+.-list-item-bottom{
+    flex-direction: row;
+    align-items: center;
+}
+.-list-item-price{
+    line-height: 19px;
+    font-weight: 500;
+    color: #FE5C00;
+}
+.-list-item-delprice{
+    font-size: 12px;
+    text-decoration: line-through;
+    margin-left: 8px;
+    color: #8f8f8f;
+}
+.-list-item-num-box{
+	flex-direction: row;
+    align-items: center;
+    padding: 1px 6px;
+    background-color: #FEF8F4;
+    border-radius: 8px;
+    border: 1px solid #FE904A;
+}
+.-list-item-num-img{
+    width: 9px;
+    height: 11px;
+    margin-right: 3px;
+}
+.-list-item-num{
+    color: #FE904A;
+    font-size: 10px;
+}
+</style>

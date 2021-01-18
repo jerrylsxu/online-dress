@@ -1,0 +1,257 @@
+<template>
+    <view class="page">
+		<scroll-view class="main" scroll-y>
+			<!-- banner -->
+			<detail-swiper dataList={bannerList}></detail-swiper>
+			<!-- goods info -->
+			<detail-info dataInfo={dataInfo}></detail-info>
+			<!-- goods spec -->
+			<view class="goods_spec_box" onclick="fnChooseSpec">
+				<text class="goods_spec_desc">规格</text>
+				<text class="goods_spec_text">{spec ? spec : '默认规格'}</text>
+				<view class="flex1"></view>
+				<image class="goods_arrow" src="../../images/main1/gor3.png"></image>
+			</view>
+			<!-- goods details -->
+			<view class="goods_details_box">
+				<view class="goods_detail_desc">
+					<view class="left_line"></view>
+					<text class="left_zi color_1">商品详情</text>
+				</view>
+				<rich-text nodes={html}></rich-text>
+			</view>
+		</scroll-view>
+		<!-- floor btns -->
+		<detail-footer onshare="onfooterShare" oncart="onfooterCart" onaddCart="onfooterAddCart" onbuy="onfooterBuy"></detail-footer>
+		<!-- spec select -->
+		<detail-spec v-if={showSpec} dataInfo={dataInfo} action={action} spec={spec} buynum={buynum} oncloseSpec="oncloseSpec" onspecChange="onspecChange" onminusNum="onminusNum" onaddNum="onaddNum" onaddCart="onaddCart" onbuy="onbuy"></detail-spec>
+		<!-- share -->
+		<detail-share v-if={showShare} onshareCancel="onshareCancel" onshare="onshare"></detail-share>
+	</view>
+</template>
+<script>
+import $util from '../../utils/util.js'
+import UserCenter from '../../utils/user.js'
+import '../../components/detail/detail-swiper.stml'
+import '../../components/detail/detail-info.stml'
+import '../../components/detail/detail-footer.stml'
+import '../../components/detail/detail-spec.stml'
+import '../../components/detail/detail-share.stml'
+export default {
+	name: 'detail',
+	data() {
+		return{
+			bannerList:[],
+			dataInfo:{},
+			html:'',
+			spec:'',
+			buynum:1,
+			action:'',
+			showSpec:false,
+			showShare:false
+		}
+	},
+	methods: {
+		apiready(){
+			this.getData();
+		},
+		getData(){
+			$util.showProgress();
+			let that = this;
+			let url = 'homes/getGoodsByid?id=' + api.pageParam.id;
+			$util.ajax({
+				url: url
+			}, function(res, err){
+				console.log(JSON.stringify(res));
+				$util.hideProgress();
+				if (res && res.errcode == 0) {
+					let data = res.data;
+					that.data.dataInfo = data;
+					that.data.bannerList = data.images ? data.images.split(',') : data.image.split(',');
+					that.data.html = data.content?$util.fitRichText(data.content, api.winWidth-30):'';
+					let guige = data.guige_data;
+					if (guige && guige.length > 0){
+						that.data.spec = guige[0].a;
+					}
+				} else {
+					$util.toast('获取失败');
+				}
+			});
+		},
+		fnChooseSpec(){
+			this.data.action = 'spec';
+			this.data.showSpec = true;
+		},
+		// spec handler
+		oncloseSpec(){
+			this.data.showSpec = false;
+		},
+		onspecChange(e){
+			this.data.spec = e.detail.spec;
+		},
+		onminusNum(){
+			if (this.data.buynum > 1) {
+				this.data.buynum -= 1;
+			}
+		},
+		onaddNum(){
+			if (this.data.buynum < this.data.dataInfo.ku_num) {
+				if (this.data.buynum < 20) {
+					this.data.buynum += 1;
+				} else {
+					$util.toast('添加数量已经达到上限');
+				}
+			}
+		},
+		onaddCart(){
+			if (UserCenter.isLogin()) {
+				let that = this;
+				let buynum = that.data.buynum;
+				let key = that.data.spec;
+				let id = that.data.dataInfo.id;
+				let post = {goodsid:id, key:key, buynum:buynum};
+				$util.ajax({
+					method: 'post',
+					url: 'homes/cartAdd',
+					data: {
+						body: post
+					}
+				}, function(res, err){
+					if (res && res.errcode == 0){
+						$util.toast('添加成功');
+						that.data.showSpec = false;
+					} else {
+						$util.toast('添加失败');
+					}
+				});
+			} else {
+				$util.goLogin();
+			}
+		},
+		onbuy(){
+			if (UserCenter.isLogin()) {
+				let buynum = this.data.buynum;
+				let key = this.data.spec;
+				let id = this.data.dataInfo.id;
+				$util.openWin({
+					name: 'ordert',
+					url: '../ordert/ordert.stml',
+					title: '立即购买',
+					pageParam: {
+						act: 'buy',
+						goodsid: id,
+						buynum: buynum,
+						key: key
+					}
+				});
+				this.data.showSpec = false;
+			} else {
+				$util.goLogin();
+			}
+		},
+		// footer handler
+		onfooterShare(){
+			this.data.showShare = true;
+		},
+		onfooterCart(){
+			if (UserCenter.isLogin()) {
+				if ($util.isMp()) {
+					wx.switchTab({
+						url: '/pages/main3/main3'
+					});
+				} else {
+					$util.openWin({
+						name: 'cart',
+						url: '../main3/main3.stml',
+						title: '购物车'
+					});
+				}
+			} else {
+				$util.goLogin();
+			}
+		},
+		onfooterAddCart(){
+			this.data.action = 'cart';
+			this.data.showSpec = true;
+		},
+		onfooterBuy(){
+			this.data.action = 'buy';
+			this.data.showSpec = true;
+		},
+		// share
+		onshareCancel(){
+			this.data.showShare = false;
+		},
+		onshare(e){
+			this.data.showShare = false;
+			let name = e.detail.name;
+			if (name == '微信') {
+				// to do
+				$util.toast('分享成功');
+			}
+		},
+		/**
+		 * 用户点击右上角分享
+		 */
+		onShareAppMessage: function () {}
+	}
+}
+</script>
+<style>
+.page {
+	height: 100%;
+	background-color: #f8f8f8;
+}
+.main{
+	flex: 1;
+}
+/* goods spec */
+.goods_spec_box{
+	flex-direction: row;
+    align-items: center;
+    height: 50px;
+    margin-top: 8px;
+	padding: 0 15px;
+	background-color: white;
+}
+.goods_arrow{
+    width: 14px;
+    height: 14px;
+}
+.goods_spec_desc{
+	font-size: 14px;
+	color: #666;
+}
+.goods_spec_text{
+	font-size: 14px;
+	color: #333;
+	margin-left: 14px;
+}
+/* goods details */
+.goods_details_box{
+    margin-top: 8px;
+	background-color: white;
+	padding: 0 15px 10px;
+}
+.goods_detail_desc{
+	flex-direction: row;
+    align-items: center;
+    height: 52px;
+	border-bottom: 1px solid #f8f8f8;
+}
+.left_line{
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+	background-color: #FE904A;
+}
+.left_zi{
+    font-size: 16px;
+    font-weight: bold;
+	color: #333;
+    margin-left: 8px;
+}
+.goods_rich{
+    margin-top: 10px;
+}
+</style>

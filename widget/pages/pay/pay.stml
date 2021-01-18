@@ -1,0 +1,113 @@
+<template>
+    <view class="page">
+		<view class="box" v-if={type=='ok'}>
+			<image class="img" src="../../images/main3/pay_ok.jpg"></image>
+			<text class="t1">支付成功</text>
+			<text class="t2">{'订单号：' + orderid}</text>
+			<view class="flex1"></view>
+			<text class="btn_order" onclick="fnOpenOrderDetailPage">查看订单</text>
+		</view>
+		<view class="box" v-if={type=='err'}>
+			<image class="img" src="../../images/main3/pay_err.png"></image>
+			<text class="t1">支付失败</text>
+			<text class="btn_pay" onclick="fnRepay">重新支付</text>
+		</view>
+    </view>
+</template>
+<script>
+import $util from '../../utils/util.js'
+export default {
+	name: 'pay',
+	data() {
+		return{
+			type: '',
+			orderid: ''
+		}
+	},
+	methods: {
+		apiready(){
+			this.data.orderid = api.pageParam.orderid;
+			this.data.type = api.pageParam.type;
+		},
+		fnOpenOrderDetailPage(){
+			$util.openWin({
+				name: 'orderDetail',
+				url: '../order_details/order_details.stml',
+				title: '订单详情',
+				pageParam: {
+					orderid: this.data.orderid
+				}
+			});
+		},
+		fnRepay(){
+			$util.showProgress();
+			$util.payOrder(this.data.orderid, (flag, msg)=>{
+				$util.hideProgress();
+				$util.toast(msg);
+				if (flag) {
+					//支付成功
+					this.data.type = 'ok';
+				}
+			});
+		}
+	}
+}
+</script>
+<style>
+.page {
+	height: 100%;
+}
+.box{
+	height: 100%;
+	align-items: center;
+}
+.img {
+    width: 112px;
+    height: 80px;
+    margin-top: 50px;
+}
+.t1{
+    font-size: 28px;
+    text-align: center;
+	font-weight: bold;
+	margin-top: 15px;
+}
+.t2{
+    text-align: center;
+    font-size: 14px;
+	margin-top: 15px;
+	color: #666666;
+}
+.flex1{
+	flex: 1;
+}
+.btn_order{
+	align-self: stretch;
+    height: 45px;
+    border-radius: 4px;
+    font-weight:bold;
+    text-align: center;
+    line-height: 45px;
+    font-size: 16px;
+	margin: 15px;
+	color: white;
+	background-color: #FF7037;
+}
+.btn_order:active{
+	opacity: 0.7;
+}
+.btn_pay{
+	height: 30px;
+	margin-top: 25px;
+	padding: 0 15px;
+    border: 1px solid #FE904A;
+	border-radius: 16px;
+	text-align: center;
+	line-height: 30px;
+	font-size: 14px;
+	color: #FE904A;
+}
+.btn_pay:active{
+	opacity: 0.7;
+}
+</style>

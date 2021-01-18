@@ -1,0 +1,567 @@
+<template>
+    <view class="page">
+			<view class="main" v-if={olist.length > 0}>
+				<view class="nav_box">
+					<image class="nav_img" src={appInfo.image}></image>
+					<text class="nav_appname">{appInfo.title}</text>
+					<view class="flex1"></view>
+					<text class="nav_btn" onclick="onEditBtn">{isEdit?'取消':'编辑'}</text>
+				</view>
+				<scroll-view class="flex1">
+					<view class="list_box">
+						<view class="card_one" v-for="(item,index) in olist">
+							<view class="chk_img_box" data-id={item.cartid} onclick="fnChooseGoods">
+								<image class="chk_img" src={'../../images/main3/chk_'+(selectedInfo[item.cartid]?'1.png':'0.png')}></image>
+							</view>
+							<image class="card_img" src={item.image} mode="aspectFill" data-index={index} onclick="fnOpenGoodsDetail"></image>
+							<view class="card_details">
+								<text class="card_title" data-index={index} onclick="fnOpenGoodsDetail">{item.title}</text>
+								<view class="card_tips" data-index={index} onclick="fnChooseSpec">
+									<text class="card_tip">{item.key ? item.key : '默认规格'}}</text>
+									<image class="card_lower" src="../../images/main3/lower.png"></image>
+									<text class="flex1 card_dz" v-if={item.isjia == 0}>已下架</text>
+								</view>
+								<view class="card_pbox">
+									<text class="card_price">{'¥'+item.price}</text>
+									<view class="flex1"></view>
+									<view class="card_num">
+										<text class={'card_btn'+(item.buynum==1?' card_btn_disable':'')} data-index={index} onclick="fnMinusBuynum">-</text>
+										<text class="card_num_text">{item.buynum}</text>
+										<text class="card_btn" data-index={index} onclick="fnAddBuynum">+</text>
+									</view>
+								</view>
+							</view>
+						</view>
+					</view>
+				</scroll-view>
+				<!-- footer box -->
+				<view class="footer_box">
+					<view class="footer_chk" onclick="fnChooseAll">
+						<image class="chkall_img" src={'../../images/main3/chk_'+(chkall?'1.png':'0.png')}></image>
+						<text class="chk_zi">全选</text>
+					</view>
+					<view class="footer_zi" v-if={!isEdit}>
+						<text class="footer_czi">合计：</text>
+						<text class="footer_rzi">{'￥'+account.price}</text>
+						<text class="footer_btn" onclick="fngetOrdert">{'结算('+account.num+')'}</text>
+					</view>
+					<text class="footer_btn" v-if={isEdit} onclick="fnDelCart">{'删除('+account.num+')'}</text>
+				</view>
+				<safe-area></safe-area>
+			</view>
+			<!-- 无数据 -->
+			<view class="nolist" v-else>
+				<view class="notlogin" v-if={!isLogin}>
+					<text class="login-desc">登录后开启购物车</text>
+					<text class="login-btn" onclick="login">登录</text>
+				</view>
+				<no-data image="../../images/common/nolist.png" desc="购物车是空的，快去逛一逛吧~"></no-data>
+			</view>
+			<!-- spec select -->
+			<detail-spec v-if={showSpec} dataInfo={goodsInfo} action='cart' spec={spec} buynum={buynum} oncloseSpec="oncloseSpec" onspecChange="onspecChange" onminusNum="onminusNum" onaddNum="onaddNum" onaddCart="onaddCart"></detail-spec>
+		</view>
+</template>
+<script>
+import $util from '../../utils/util.js'
+import UserCenter from '../../utils/user.js'
+import '../../components/no-data.stml'
+import '../../components/detail/detail-spec.stml'
+export default {
+	name: 'main3',
+	data() {
+		return{
+			isLogin:UserCenter.isLogin(),
+			appInfo:{},
+			olist:[],
+			selectedInfo:{},
+			account:{price:0, num:0},
+			isEdit:false,
+			chkall:false,
+
+			// 修改规格相关
+			cartid: '',     	//购物车ID
+			id: '',     		//商品ID
+			goodsInfo: null,    //商品详情数据
+			spec: '',	        //购买规格
+			buynum: 0,          //购买数量
+			showSpec: false    	//设置弹出规格
+		}
+	},
+	methods: {
+		apiready(){
+			if (this.data.isLogin) {
+				this.getData();
+			}
+			this.getAppInfo();
+		},
+		onShow(){
+			if (this.data.isLogin != UserCenter.isLogin()) {
+				this.data.isLogin = UserCenter.isLogin();
+			}
+			if (this.data.isLogin) {
+				this.getData();
+			} else {
+				// 清除信息
+				this.data.olist = [];
+			}
+		},
+		login(){
+			$util.goLogin();
+		},
+		onEditBtn(){
+			this.data.isEdit = !this.data.isEdit;
+		},
+		fnChooseGoods(e){
+			let id = e.currentTarget.dataset.id;
+			this.data.selectedInfo[id] = this.data.selectedInfo[id]?false:true;
+			this.fngetChksta();
+			this.fngetAccount();
+		},
+		fnOpenGoodsDetail(e){
+			let id = this.data.olist[e.currentTarget.dataset.index].id;
+			$util.openWin({
+				name: 'detail-'+id,
+				url: '../details/details.stml',
+				title: '商品详情',
+				pageParam: {
+					id: id
+				}
+			});
+		},    
+		/**
+		 * 调起规格
+		 * */ 
+		fnChooseSpec(e){
+			$util.showProgress();
+			let item = this.data.olist[e.currentTarget.dataset.index];
+			$util.ajax({
+				url: 'homes/getGoodsByid?id='+item.id
+			}, (res,err)=>{
+				if(res && res.errcode == 0){
+					this.data.cartid = item.cartid;
+					this.data.id = item.id;
+					this.data.spec = item.key;
+					this.data.buynum = item.buynum;
+					this.data.goodsInfo = res.data;
+					this.data.showSpec = true;
+				}
+				$util.hideProgress();
+			});
+		},
+		fnMinusBuynum(e){
+			let index = e.currentTarget.dataset.index;
+			let item = this.data.olist[index];
+			if (item.buynum > 1) {
+				item.buynum -= 1;
+				this.fngetAccount();
+				this.fnEditCart(item.cartid, 'dec');
+			}
+		},
+		fnAddBuynum(e){
+			let index = e.currentTarget.dataset.index;
+			let item = this.data.olist[index];
+			if (item.buynum < item.ku_num) {
+				if (item.buynum < 20) {
+					item.buynum += 1;
+					this.fngetAccount();
+					this.fnEditCart(item.cartid, 'inc');
+				} else {
+					$util.toast('添加数量已经达到上限');
+				}
+			}
+		},
+		fnEditCart(cartid, action){
+			let url = 'homes/cartEditNum?id=' + cartid + "&act=" + action;
+			$util.ajax({
+				url: url
+			}, (res,err)=>{
+
+			});
+		},
+		fnDelCart(){
+			let selectedInfo = this.data.selectedInfo;
+			let post = [];
+			for (let i in selectedInfo){
+				if (selectedInfo[i]){
+					post.push(i);
+				}
+			}
+			if (post.length > 0) {
+				api.confirm({
+					title: '提示',
+					msg: '确认要删除所选商品吗？'
+				}, (ret)=>{
+					if (ret.buttonIndex == 2) {
+						$util.ajax({
+							url: 'homes/cartDel',
+							method: 'post',
+							data: {
+								body: {ids: post}
+							}
+						}, (res, err)=>{
+							if (res) {
+								$util.toast(res.msg);
+								if (res.errcode == 0) {
+									this.getData();
+								}
+							}
+						});
+					}
+				});
+			}
+		},
+		/**
+		 * 结算
+		 * */ 
+		fngetOrdert(){
+			let selectedInfo = this.data.selectedInfo;
+			let cartids = [];
+			for (let i in selectedInfo){
+				if (selectedInfo[i]){
+					cartids.push(i);
+				}
+			}
+			if (cartids.length == 0) {
+				// $util.toast('请选择需要结算的商品~');
+				return;
+			}
+			$util.openWin({
+				name: 'ordert',
+				url: '../ordert/ordert.stml',
+				title: '立即购买',
+				pageParam: {
+					act: 'cart',
+					cartids: cartids
+				}
+			});
+		},
+		/**
+		 * *全选
+		 * */ 
+		fnChooseAll(){
+			this.data.chkall = !this.data.chkall;
+			let olist = this.data.olist;
+			for (let i=0; i<olist.length; i++){
+				this.data.selectedInfo[olist[i].cartid] = this.data.chkall;
+			}
+			this.fngetAccount();
+		},
+		/***
+		 * 判断是否全选
+		 * */ 
+		fngetChksta(){
+			let olist = this.data.olist;
+			let selectedInfo = this.data.selectedInfo;
+			let chkall = true;
+			for (let i=0; i<olist.length; i++) {
+				if (!selectedInfo[olist[i].cartid]){
+					chkall = false;
+					break
+				}
+			}
+			this.data.chkall = chkall;
+		},
+		fngetAccount(){
+			let olist = this.data.olist;
+			let selectedInfo = this.data.selectedInfo;
+			let price = 0;
+			let num = 0;
+			for (let i=0; i<olist.length; i++) {
+				let obj = olist[i];
+				if (selectedInfo[obj.cartid]) {
+					num += obj.buynum;
+					price += obj.price * obj.buynum;
+				}
+			}
+			let account = {price, num};
+			this.data.account = account;
+		},
+		// spec handler
+		oncloseSpec(){
+			this.data.showSpec = false;
+		},
+		onspecChange(e){
+			this.data.spec = e.detail.spec;
+		},
+		onminusNum(){
+			if (this.data.buynum > 1) {
+				this.data.buynum -= 1;
+			}
+		},
+		onaddNum(){
+			if (this.data.buynum < this.data.goodsInfo.ku_num) {
+				if (this.data.buynum < 20) {
+					this.data.buynum += 1;
+				} else {
+					$util.toast('添加数量已经达到上限');
+				}
+			}
+		},
+		onaddCart(){
+			$util.showProgress();
+			let post = {
+				cartid: this.data.cartid,
+				id: this.data.id,
+				key: this.data.spec,
+				buynum: this.data.buynum
+			};
+			$util.ajax({
+				url: 'homes/cartEditKeyn',
+				method: 'post',
+				data: {
+					body: post
+				}
+			}, (res, err)=>{
+				if (res) {
+					if (res.errcode == 0) {
+						this.showSpec = false
+						this.getData();
+					}
+				}
+				$util.hideProgress();
+			});
+		},
+		getAppInfo(){
+			$util.ajax({
+				url: 'homes/about'
+			}, (ret,err)=>{
+				if (ret && ret.errcode == 0) {
+					this.data.appInfo = ret.data;
+				}
+			});
+		},
+		getData(){
+			$util.ajax({
+				url: "homes/cartList"
+			}, (res,err)=>{
+				if (res) {
+					if (res.errcode == 0) {
+						let olist = res.data;
+						let selectedInfo = {};
+						for (let i=0; i<olist.length; i++) {
+							let cartid = olist[i].cartid;
+							selectedInfo[cartid] = this.data.selectedInfo[cartid]?true:false;
+						}
+						this.data.selectedInfo = selectedInfo;
+						this.data.olist = olist;
+					} else {
+						$util.toast(res.msg);
+					}
+				} else {
+					// 网络连接错误，或者服务器未响应
+				}
+			});
+		}
+	}
+}
+</script>
+<style>
+.page{
+	height: 100%;
+	background-color: #f8f8f8;
+}
+.nolist{
+	height: 100%;
+}
+.notlogin{
+	flex-direction: row;
+	justify-content: center;
+	align-items: center;
+	background-color: rgb(245, 231, 231);
+	height: 44px;
+}
+.login-desc{
+	font-size: 12px;
+	color: #333333;
+}
+.login-btn{
+	margin-left: 10px;
+	padding: 2px 12px;
+	border-radius: 8px;
+	font-size: 12px;
+	color: white;
+	background-color: #FF6600;
+}
+/* nav box */
+.nav_box{
+	flex-direction: row;
+    align-items: center;
+    height: 54px;
+	background-color: white;
+}
+.nav_img{
+    width: 34px;
+    height: 34px;
+    border-radius: 4px;
+    margin-left: 15px;
+    margin-right: 8px;
+	background-color: #f8f8f8;
+}
+.nav_appname{
+    font-size: 12px;
+    color: #333333;
+}
+.flex1{
+	flex: 1;
+}
+.nav_btn{
+    width: 70px;
+    height: 30px;
+    line-height: 30px;
+    border-radius: 2px;
+    text-align: center;
+    color: #FF7037;
+    font-size: 14px;
+    margin-right: 15px;
+	border: 1px solid #FF7037;
+}
+.nav_btn:active{
+	opacity: 0.7;
+}
+/* list */
+.list_box{
+	padding: 0 15px;
+	background-color: white;
+	border-radius: 4px;
+	margin: 10px 15px;
+}
+.card_one{
+	flex-direction: row;
+    height: 120px;
+	padding: 15px 0;
+	border-bottom: 1px solid #f8f8f8;
+}
+.card_img{
+    width: 90px;
+    height: 68px;
+}
+.chk_img_box{
+	justify-content: center;
+	width: 35px;
+	height: 68px;
+}
+.chk_img{
+	width: 20px;
+	height: 20px;
+ }
+.card_details{
+	flex: 1;
+	margin-left: 15px;
+}
+.card_title {
+    font-size: 15px;
+    color: #333333;
+    height: 18px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.card_tips{
+	flex-direction: row;
+    align-items: center;
+    margin-top: 8px;
+}
+.card_tip{
+    font-size: 12px;
+    color: #999999;
+    padding: 0 4px;
+    background-color: #F9FAF9;
+    margin-right: 5px;
+}
+.card_lower{
+    width: 10px;
+    height: 10px;
+}
+.card_dz{
+	font-size: 12px;
+    text-align: right;
+    color: #999999;
+}
+.card_pbox{
+	flex-direction: row;
+    align-items: center;
+	margin-top: 18px;
+}
+.card_price{
+    font-size: 14px;
+    color: #FF7037;
+}
+.card_num{
+	flex-direction: row;
+	align-items: center;
+    width: 106px;
+    height: 30px;
+	border: 1px solid #f8f8f8;
+	border-radius: 4px;
+}
+.card_btn{
+    width: 35px;
+    text-align: center;
+    font-size: 20px;
+    color: #555555;
+}
+.card_btn_disable{
+	color: #CCCCCC;
+}
+.card_num_text{
+	flex: 1;
+	text-align: center;
+	font-size: 14px;
+    color: #333333;
+}
+/* footer box */
+.footer_box{
+	flex-direction: row;
+	justify-content: space-between;
+    align-items: center;
+    height: 51px;
+	background-color: white;
+}
+.footer_chk{
+	flex-direction: row;
+    align-items: center;
+	height: 40px;
+}
+.chkall_img{
+    width: 20px;
+    height: 20px;
+    margin-left: 15px;
+}
+.chk_zi{
+    font-size: 12px;
+    color: #666666;
+    margin-left: 6px;
+}
+.footer_zi{
+	flex-direction: row;
+	align-items: center;
+}
+.footer_czi{
+	font-size: 13px;
+    color: #333333;
+}
+.footer_rzi{
+    font-size: 15px;
+	color: #FE5C00;
+}
+.footer_btn{
+    width: 96px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 14px;
+    color: #FFFFFF;
+    border-radius: 2px;
+    margin: 0 8px;
+	background-color: #FF7037;
+}
+.footer_btn:active{
+	opacity: 0.7;
+}
+.coverbg{
+	position: absolute;
+	width: 100%;
+	height: 100%;
+    background-color: rgba(0,0,0,0.4);
+}
+</style>

@@ -1,0 +1,459 @@
+<template>
+	<view class="page">
+		<scroll-view class="scroll-view" v-if={odata} scroll-y enable-back-to-top>
+			<view class="nav">
+				<view class="nav_top">
+					<text class="nav_zi">{odata.status_str}</text>
+					<view class="nav_time" v-if={odata.status == 1 || odata.status == 4}>
+						<image class="nav_icon" src="../../images/main4/time.png"></image>
+						<text class="nav_time">{'剩余'+time_str}</text>
+					</view>
+				</view>
+				<text class="tips">{desc}</text>
+			</view>
+			<!-- 配送 -->
+			<view class="address_box">
+				<image class="address_img" src="../../images/main1/address.png"></image>
+				<view class="address_wrap">
+					<view class="address_cont">
+						<view class="address_tit">
+							<text class="address_name">{'收货人：' + odata.uname}</text>
+							<view class="flex1"></view>
+							<text class="address_phone">{$filter.phoneHash(odata.phone)}</text>
+						</view>
+						<text class="address_details">{odata.qustr + odata.address}</text>
+					</view>
+				</view>
+			</view>
+			<!-- 商品 -->
+			<view class="goods_box">
+				<order-goods dataList={odata.show_data} showBtn={odata.status > 2 && odata.status <= 9} onitemClick="onGoodsItemClick" onbtnClick="fnSaleApply"></order-goods>
+				<view class="bot-box">
+					<text class="list_szi">{'共'+(odata.buy_num||0)+'件商品，合计:'}</text>
+					<text class="list_rzi">{'￥'+odata.pay_price}</text>
+				</view>
+			</view>
+			<!-- 订单信息 -->
+			<view class="ge_box">
+				<view class="ge_item" v-for="(item,index) in displayList">
+					<text class="ge_left">{item.title}</text>
+					<text class="ge_right">{item.detail}</text>
+				</view>
+			</view>
+			<!-- 底部按钮 -->				
+			<view class="footer" v-if={odata.status != 5 && odata.status != 9}>
+				<view class="flex1"></view>
+				<!-- 取消订单 未支付 -->
+				<text class="btn btn-gray" v-if={odata.status == 1} data-id={odata.id} onclick="fnCancelOrder">取消订单</text>
+				<text class="btn btn-orange" v-if={odata.status == 1} data-orderid={odata.orderid} onclick="fnPayOrder">立即付款</text>
+				<!-- 取消订单 已支付 -->
+				<text class="btn btn-gray" v-if={odata.status > 1 && odata.status < 4} data-id={odata.id} onclick="fnCancelOrderPay">取消订单</text>
+				<!-- 确认收货 -->
+				<text class="btn btn-orange" v-if={odata.status == 4} data-id={odata.id} onclick="fnConfirmOrder">确认收货</text>
+			</view>
+			<safe-area></safe-area>
+		</scroll-view>
+	</view>
+</template>
+<script>
+import $util from '../../utils/util.js'
+import $filter from '../../utils/filter.js'
+import '../../components/order-goods.stml'
+export default {
+	name: 'order_detail',
+	data() {
+		return{
+			orderid: '',
+			odata: null,
+			time_str: '',
+			displayList: []
+		}
+	},
+	computed:{
+		desc(){
+			if (!this.data.odata) {return ''};
+			let status = this.data.odata.status;
+			let type = this.data.odata.type;
+			if (status == 1) {
+				return '倒计时结束订单自动取消';
+			} else if (status == 2 && type == 'wuliu') {
+				return '请耐心等待，将尽快为您安排发货';
+			} else if (status == 4 && type == 'wuliu') {
+				return '倒计时结束自动确认收货';
+			} else if (status == 5 && type == 'wuliu') {
+				return '感谢您对本平台的光顾';
+			} else if (status == 9) {
+				return '欢迎再次使用';
+			}
+			return '';
+		}
+	},
+	methods: {
+		apiready(){
+			this.data.orderid = api.pageParam.orderid;
+			this.getData();
+		},
+		getData(){
+			$util.showProgress();
+			$util.ajax({
+				url: 'homes/orderInfo?orderid=' + this.data.orderid
+			}, (res, err)=>{
+				if (res) {
+					if (res.errcode == 0){
+						let data = res.data;
+
+						let displayList = [{
+							title: '配送方式',
+							detail: '配送'
+						},{
+							title: '订单编号',
+							detail: data.orderid
+						},{
+							title: '交易编号',
+							detail: data.payoid
+						},{
+							title: '创建时间',
+							detail: $filter.dateFormat(data.addtime)
+						},{
+							title: '运费',
+							detail: '￥'+data.yunfei_price
+						},{
+							title: '备注',
+							detail: data.beizhu||''
+						}];
+						if (data.type == 'wuliu' && data.status > 3 && data.status < 9) {
+							displayList.push({
+								title: '物流公司',
+								detail: data.kd_name||''
+							});
+							displayList.push({
+								title: '物流单号',
+								detail: data.kd_code||''
+							});
+						}
+						this.data.displayList = displayList;
+
+						this.data.odata = data;
+						if (data.endmiao && data.endmiao > 0){
+							this.countTime(data.endmiao);
+						}
+					} else{
+						$util.toast(res.msg);
+					}
+				} else {
+					$util.toast('网络错误');
+				}
+				$util.hideProgress();
+            });
+		},
+		countTime(endtime){
+			if (!this.data.odata.endmiao){
+				return;
+			}
+			// 倒计时
+			let dd = 0;
+			let hh = 0;
+			let mm = 0;
+			let ss = 0;
+			
+			if (!endtime || endtime <= 0) {
+				this.getData();
+				return;
+			}
+			let _endtime = parseInt(endtime) + 5000;
+			dd = parseInt(_endtime / 3600 / 24 / 1000);
+			let _hh = _endtime - dd * 3600 * 1000 * 24;
+			hh = parseInt(_hh / 3600 / 1000);
+			let _mm = _hh - hh * 3600 * 1000;
+			mm = parseInt(_mm / 60 / 1000);
+			let _ss = _mm - mm * 1000 * 60;
+			ss = parseInt(_ss / 1000);
+			hh = hh < 10 ? '0' + hh : hh;
+			mm = mm < 10 ? '0' + mm : mm;
+			ss = ss < 10 ? '0' + ss : ss;
+			let _str = '';
+			if (dd > 0) {
+				_str = dd + '天' + hh + '小时' + mm + '分钟' + ss + '秒';
+			} else {
+				_str = hh + '小时' + mm + '分钟' + ss + '秒';
+			}
+			_endtime = endtime - 1000;
+			this.data.time_str = _str;
+			setTimeout(()=>{
+				this.countTime(_endtime);
+			}, 1000);
+		},
+		onGoodsItemClick(){
+
+		},
+		fnSaleApply(e){
+			// tui_sta 退货状态码   osid 订单附表id   tui_oid 退货单id   orderid 订单id
+			let odata = this.data.odata;
+			let index = e.detail.index;
+			let item = odata.show_data[index];
+			console.log(JSON.stringify(item));
+			let tui_sta = item.tui_sta;
+			let osid = item.id;
+			let tui_oid = item.tui_oid;
+			let orderid = odata.orderid;
+			if (tui_sta > 0 && tui_sta < 9){
+				$util.openWin({
+					name: 'shouhou_show',
+					url: '../shouhou_show/shouhou_show.stml',
+					title: '订单详情',
+					pageParam: {
+						orderid: tui_oid
+					}
+				});
+			} else {
+				if (odata.status > 2 && odata.status < 9){
+					$util.openWin({
+						name: 'shouhou',
+						url: '../shouhou/shouhou.stml',
+						title: '申请退款',
+						pageParam: {
+							id: osid,
+							orderid: orderid
+						}
+					});
+				} else {
+					$util.toast('该订单不能申请售后');
+				}
+			}
+		},
+		fnCancelOrder(e){
+			api.confirm({
+				title: '提示',
+				msg: '您确定要取消订单吗？'
+			}, (ret)=>{
+				if (ret.buttonIndex == 2){
+					$util.showProgress();
+					$util.ajax({
+						url: 'homes/orderOut?id=' + e.currentTarget.dataset.id
+					}, (res,err)=>{
+						$util.hideProgress();
+						if (res && res.errcode == 0){
+							$util.toast('取消成功');
+							this.getData();
+						} else {
+							$util.toast('取消失败');
+						}
+					})
+				}
+			});
+		},
+		fnCancelOrderPay(e){
+			api.confirm({
+				title: '提示',
+				msg: '您确定要取消订单吗？'
+			}, (ret)=>{
+				if (ret.buttonIndex == 2){
+					$util.showProgress();
+					$util.ajax({
+						url: 'homes/ordertui?id=' + e.currentTarget.dataset.id
+					}, (res,err)=>{
+						$util.hideProgress();
+						if (res) {
+							if (res.errcode == 0){
+								$util.toast('取消成功');
+								this.getData();
+							} else {
+								$util.toast(res.msg);
+							}
+						} else {
+							$util.toast('网络错误');
+						}
+					})
+				}
+			});
+		},
+		fnPayOrder(e){
+			$util.showProgress();
+			let ids = e.currentTarget.dataset.orderid;
+			$util.payOrder(ids, (flag, msg)=>{
+				$util.hideProgress();
+				$util.toast(msg);
+				if (flag) {
+					//支付成功
+					this.getData();
+				}
+			});
+		},
+		fnConfirmOrder(e){
+			api.confirm({
+				title: '提示',
+				msg: '是否确认收货？'
+			}, (ret)=>{
+				if (ret.buttonIndex == 2){
+					$util.showProgress();
+					$util.ajax({
+						url: 'homes/orderOk?id=' + e.currentTarget.dataset.id
+					}, (res,err)=>{
+						$util.hideProgress();
+						if (res && res.errcode == 0){
+							$util.toast('确认收货成功');
+							this.getData();
+						} else {
+							$util.toast('确认收货失败');
+						}
+					})
+				}
+			});
+		}
+	}
+}
+</script>
+<style>
+.page {
+	height: 100%;
+	background-color: #f6f6f6;
+}
+.scroll-view{
+	flex: 1;
+}
+.nav{
+    height: 84px;
+    padding: 15px;
+	background: linear-gradient(to bottom, #fcad1e, #ff8b19);
+}
+.nav_top{
+	flex-direction: row;
+	justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.nav_time{
+	flex-direction: row;
+    align-items: center;
+}
+.nav_icon{
+    width: 14px;
+    height: 14px;
+}
+.nav_zi{
+    font-size: 17px;
+	color: white;
+}
+.nav_time{
+    margin-left: 4px;
+	font-size: 14px;
+	color: white;
+}
+.tips{
+	margin-top: 10px;
+	font-size: 14px;
+	color: white;
+}
+/* 地址 */
+.address_box{
+	flex-direction: row;
+	align-items: center;
+	min-height: 85px;
+	margin-top: 8px;
+	background-color: white;
+}
+.address_img{
+	width: 32px;
+	height: 32px;
+	margin-left: 10px;
+}
+.address_wrap{
+	justify-content: center;
+	flex: 1;
+	margin: 0 15px;
+}
+.noaddress{
+    font-size: 15px;
+    color: #333333;
+}
+.address_tit{
+	flex-direction: row;
+}
+.address_name{
+	font-size: 15px;
+    color: #333333;
+}
+.flex1{
+	flex: 1;
+}
+.address_phone{
+	margin-top: 2px;
+	font-size: 13px;
+	color: #777777;
+}
+.address_details{
+	margin-top: 5px;
+	font-size: 12px;
+	color: #333333;
+}
+/* 商品 */
+.goods_box{
+	background-color: white;
+	margin-top: 8px;
+}
+.bot-box{
+	flex-direction: row;
+    align-items: center;
+    height: 44px;
+	padding: 0 15px;
+}
+.list_szi{
+    font-size: 12px;
+	color: #333333;
+}
+.list_rzi{
+    font-size: 16px;
+	color: #FE5C00;
+}
+/* 信息 */
+.ge_box{
+	margin: 8px 0;
+	background-color: white;
+	padding: 0 15px;
+}
+.ge_item{
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	height: 44px;
+	border-bottom: 1px solid #f8f8f8;
+}
+.ge_left{
+	font-size: 16px;
+	color: #393F44;
+}
+.ge_right{
+	font-size: 14px;
+	color: #979EA6;
+}
+/* footer */
+.footer{
+	flex-direction: row;
+	align-items: center;
+	height: 44px;
+	background-color: white;
+	padding: 0 15px;
+}
+.flex1{
+	flex: 1;
+}
+.btn{
+    width: 70px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    margin-left: 8px;
+    border-radius: 2px;
+	font-size: 14px;
+	padding: 0 3px;
+}
+.btn-gray{
+	background-color: white;
+    border: 1px solid #B5B5B5;
+	color: #999999;
+}
+.btn-orange{
+	background-color: #FF7037;
+	color: white;
+}
+</style>

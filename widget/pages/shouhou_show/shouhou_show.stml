@@ -1,0 +1,243 @@
+<template>
+	<view class="page">
+		<scroll-view class="scroll-view" v-if={odata} scroll-y enable-back-to-top>
+			<view class="nav">
+				<view class="nav_top">
+					<text class="nav_zi">{odata.tui_msg}</text>
+					<view class="nav_time" v-if={odata.status == 1 || odata.status == 4}>
+						<image class="nav_icon" src="../../images/main4/time.png"></image>
+						<text class="nav_time">{'剩余'+time_str}</text>
+					</view>
+				</view>
+				<text class="tips">{desc}</text>
+			</view>
+			<!-- 商品 -->
+			<view class="goods_box">
+				<order-goods dataList={[odata]} showBtn={true} onitemClick="onGoodsItemClick" onbtnClick="onGoodsItemClick"></order-goods>
+			</view>
+			<!-- 订单信息 -->
+			<view class="ge_box">
+				<view class="ge_item" v-for="(item,index) in displayList">
+					<text class="ge_left">{item.title}</text>
+					<text class="ge_right">{item.detail}</text>
+				</view>
+			</view>
+			<!-- 上传凭证 -->
+			<view class="pingzhen_box" v-if={odata.tui_img && odata.tui_img.length > 0}>
+				<text class="title">凭证</text>
+				<view class="img_box">
+					<image class="image" style={'width:'+imgHeight+'px;height:'+imgHeight+'px;'} v-for="(item) in odata.tui_img" src={item} mode="aspectFill"></image>
+				</view>
+			</view>
+		</scroll-view>
+	</view>
+</template>
+<script>
+import $util from '../../utils/util.js'
+import $filter from '../../utils/filter.js'
+import '../../components/order-goods.stml'
+export default {
+	name: 'shouhou_show',
+	data() {
+		return{
+			orderid: '',
+			odata: null,
+			time_str: '',
+			displayList: []
+		}
+	},
+	computed:{
+		desc(){
+			let odata = this.data.odata;
+			if (!odata) {return ''};
+			let status = odata.status;
+			let type = odata.type;
+			if (status == 1) {
+				return '倒计时结束自动关闭';
+			} else if (status > 1) {
+				return $filter.dateFormat(odata.uptime);
+			}
+			return '';
+		},
+		imgHeight(){
+			return Math.floor((api.winWidth - 4*15)/3);
+		}
+	},
+	methods: {
+		apiready(){
+			this.data.orderid = api.pageParam.orderid;
+			this.getData();
+		},
+		getData(){
+			$util.showProgress();
+			$util.ajax({
+				url: 'homes/torderinfo?id=' + this.data.orderid
+			}, (res, err)=>{
+				if (res) {
+					if (res.errcode == 0){
+						let data = res.data;
+
+						let displayList = [{
+							title: '退款方式',
+							detail: '原路返回'
+						},{
+							title: '拒绝原因',
+							detail: data.adminmsg
+						},{
+							title: '退款原因',
+							detail: data.why
+						},{
+							title: '描述信息',
+							detail: data.content
+						},{
+							title: '申请时间',
+							detail: $filter.dateFormat(data.addtime)
+						},{
+							title: '退款编号',
+							detail: data.tid
+						}];
+						this.data.displayList = displayList;
+
+						this.data.odata = data;
+						if (data.endmiao && data.endmiao > 0){
+							this.countTime(data.endmiao);
+						}
+					} else{
+						$util.toast(res.msg);
+					}
+				} else {
+					$util.toast('网络错误');
+				}
+				$util.hideProgress();
+            });
+		},
+		countTime(endtime){
+			if (!this.data.odata.endmiao){
+				return;
+			}
+			// 倒计时
+			let dd = 0;
+			let hh = 0;
+			let mm = 0;
+			let ss = 0;
+			
+			if (!endtime || endtime <= 0) {
+				this.getData();
+				return;
+			}
+			let _endtime = parseInt(endtime) + 5000;
+			dd = parseInt(_endtime / 3600 / 24 / 1000);
+			let _hh = _endtime - dd * 3600 * 1000 * 24;
+			hh = parseInt(_hh / 3600 / 1000);
+			let _mm = _hh - hh * 3600 * 1000;
+			mm = parseInt(_mm / 60 / 1000);
+			let _ss = _mm - mm * 1000 * 60;
+			ss = parseInt(_ss / 1000);
+			hh = hh < 10 ? '0' + hh : hh;
+			mm = mm < 10 ? '0' + mm : mm;
+			ss = ss < 10 ? '0' + ss : ss;
+			let _str = '';
+			if (dd > 0) {
+				_str = dd + '天' + hh + '小时' + mm + '分钟' + ss + '秒';
+			} else {
+				_str = hh + '小时' + mm + '分钟' + ss + '秒';
+			}
+			_endtime = endtime - 1000;
+			this.data.time_str = _str;
+			setTimeout(()=>{
+				this.countTime(_endtime);
+			}, 1000);
+		},
+		onGoodsItemClick(){
+
+		}
+	}
+}
+</script>
+<style>
+.page {
+	height: 100%;
+	background-color: #f6f6f6;
+}
+.scroll-view{
+	flex: 1;
+}
+.nav{
+    height: 84px;
+    padding: 15px;
+	background: linear-gradient(to bottom, #fcad1e, #ff8b19);
+}
+.nav_top{
+	flex-direction: row;
+	justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.nav_time{
+	flex-direction: row;
+    align-items: center;
+}
+.nav_icon{
+    width: 14px;
+    height: 14px;
+}
+.nav_zi{
+    font-size: 17px;
+	color: white;
+}
+.nav_time{
+    margin-left: 4px;
+	font-size: 14px;
+	color: white;
+}
+.tips{
+	margin-top: 10px;
+	font-size: 14px;
+	color: white;
+}
+/* 商品 */
+.goods_box{
+	background-color: white;
+	margin-top: 8px;
+}
+/* 信息 */
+.ge_box{
+	margin: 15px 0;
+	background-color: white;
+	padding: 0 15px;
+}
+.ge_item{
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	height: 44px;
+	border-bottom: 1px solid #f8f8f8;
+}
+.ge_left{
+	font-size: 16px;
+	color: #393F44;
+}
+.ge_right{
+	font-size: 14px;
+	color: #979EA6;
+}
+/* 上传凭证 */
+.pingzhen_box{
+    margin-bottom: 15px;
+}
+.title{
+	margin-left: 15px;
+	margin-bottom: 4px;
+	font-size: 14px;
+	color: #6C7279;
+}
+.img_box{
+	flex-direction: row;
+    background: #ffffff;
+    padding: 15px 15px 15px 0;
+    box-sizing: border-box;
+}
+.image{
+	margin-left: 15px;
+}
+</style>
