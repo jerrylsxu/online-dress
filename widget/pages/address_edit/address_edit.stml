@@ -12,9 +12,10 @@
 			<view class="a_one">
 				<text class="a_zi">收货地址</text>
 				<view class="qu_box">
-					<picker class="a_picker" mode="region" value={qustr.split(',')} onchange="fnChooseStr">
+					<region-picker region={qustr||''} onchange="fnChooseStr"></region-picker>
+					<!-- <picker class="a_picker" mode="region" value={qustr.split(',')} onchange="fnChooseStr">
 						<text style={'color:'+(qustr?'#333;':'#ccc;')}>{qustr || '请选择'}</text>
-					</picker>
+					</picker> -->
 					<image class="a_gor" src="../../images/main1/gor.png"></image>
 				</view>
 			</view>
@@ -40,13 +41,14 @@
 </template>
 <script>
 import $util from '../../utils/util.js'
+import '../../components/region-picker.stml'
 export default {
 	name: 'address_edit',
 	data() {
 		return{
 			name: '',
 			phone: '',
-			qustr: '',
+			qustr: api.pageParam.qustr||'',
 			quid: '',
 			address: '',
 			def: false
@@ -77,7 +79,6 @@ export default {
 			
 		},
 		fnChooseStr(e){
-			console.log(JSON.stringify(e.detail));
 			let code = e.detail.code;
 			let val = e.detail.value;
 			this.data.quid = code.join(",");
