@@ -9,7 +9,7 @@
 		</view>
 	    <!-- banner -->
 		<view class="banner_box" style={'height:'+swiperHeight+'px;'}>
-			<swiper class="banner_swiper" circular autoplay11 onchange="fnSwiperChange">
+			<swiper class="banner_swiper" circular autoplay onchange="fnSwiperChange">
 				<swiper-item v-for="(item_, index_) in bannerList">
 					<image class="banner_img" src={item_.icon} mode="aspectFill" onclick="fnBannerPage" data-index={index_}></image>
 				</swiper-item>
