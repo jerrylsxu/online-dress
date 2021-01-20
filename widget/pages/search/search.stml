@@ -53,7 +53,10 @@
                 $util.openWin({
                     name: 'detail-'+id,
                     url: '../details/details.stml',
-                    title: '商品详情'
+                    title: '商品详情',
+					pageParam: {
+						id: id
+					}
                 });
 			},
 			onscrolltolower(){

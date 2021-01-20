@@ -1,6 +1,6 @@
 <template>
 	<view class="-my-swiper-box" style={'height:'+swiperHeight+'px;'}>
-		<swiper v-if={this.props.dataList.length>0} class="-my-swiper-swiper" circular autoplay11 onchange="fnSwiperChange">
+		<swiper v-if={this.props.dataList.length>0} class="-my-swiper-swiper" circular autoplay onchange="fnSwiperChange">
 			<swiper-item v-for="(item_, index_) in this.props.dataList">
 				<image class="-my-swiper-img" src={item_} mode="aspectFill"></image>
 			</swiper-item>
