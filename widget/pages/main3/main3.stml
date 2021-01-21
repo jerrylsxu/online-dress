@@ -15,7 +15,7 @@
 							</view>
 							<image class="card_img" src={item.image} mode="aspectFill" data-index={index} onclick="fnOpenGoodsDetail"></image>
 							<view class="card_details">
-								<text class="card_title" data-index={index} onclick="fnOpenGoodsDetail">{item.title}</text>
+								<text class="card_title" style={$util.isApp()?'white-space:nowrap;':''} data-index={index} onclick="fnOpenGoodsDetail">{item.title}</text>
 								<view class="card_tips" data-index={index} onclick="fnChooseSpec">
 									<text class="card_tip">{item.key ? item.key : '默认规格'}}</text>
 									<image class="card_lower" src="../../images/main3/lower.png"></image>
@@ -360,6 +360,9 @@ export default {
 	height: 100%;
 	background-color: #f8f8f8;
 }
+.main{
+	height: 100%;
+}
 .nolist{
 	height: 100%;
 }
@@ -453,8 +456,10 @@ export default {
     color: #333333;
     height: 18px;
 	overflow: hidden;
-	white-space: nowrap;
 	text-overflow: ellipsis;
+	display:-webkit-box;
+	-webkit-line-clamp:1;
+	-webkit-box-orient:vertical;
 }
 .card_tips{
 	flex-direction: row;
