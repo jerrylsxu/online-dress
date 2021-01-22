@@ -193,7 +193,14 @@ export default {
 		/**
 		 * 用户点击右上角分享
 		 */
-		onShareAppMessage: function () {}
+		onShareAppMessage() {
+			let odata = this.data.dataInfo;
+			return {
+				title: odata.title,
+				path: '/pages/details/details?id=' + odata.id,
+				imageUrl: odata.image
+			}
+		}
 	}
 }
 </script>
