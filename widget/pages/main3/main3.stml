@@ -51,11 +51,11 @@
 			</view>
 			<!-- 无数据 -->
 			<view class="nolist" v-else>
-				<view class="notlogin" v-if={!isLogin}>
-					<text class="login-desc">登录后开启购物车</text>
-					<text class="login-btn" onclick="login">登录</text>
-				</view>
 				<no-data image="../../images/common/nolist.png" desc="购物车是空的，快去逛一逛吧~"></no-data>
+			</view>
+			<view class="notlogin" v-if={!isLogin}>
+				<text class="login-desc">登录后开启购物车</text>
+				<text class="login-btn" onclick="login">登录</text>
 			</view>
 			<!-- spec select -->
 			<detail-spec v-if={showSpec} dataInfo={goodsInfo} action='cart' spec={spec} buynum={buynum} oncloseSpec="oncloseSpec" onspecChange="onspecChange" onminusNum="onminusNum" onaddNum="onaddNum" onaddCart="onaddCart"></detail-spec>
@@ -367,10 +367,12 @@ export default {
 	height: 100%;
 }
 .notlogin{
+	position: absolute;
 	flex-direction: row;
 	justify-content: center;
 	align-items: center;
 	background-color: rgb(245, 231, 231);
+	width: 100%;
 	height: 44px;
 }
 .login-desc{
