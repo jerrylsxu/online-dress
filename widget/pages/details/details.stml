@@ -185,7 +185,7 @@ export default {
 		onshare(e){
 			this.data.showShare = false;
 			let name = e.detail.name;
-			if (name == '微信') {
+			if (name == '微信' && $util.isApp()) {
 				// to do
 				$util.toast('分享成功');
 			}

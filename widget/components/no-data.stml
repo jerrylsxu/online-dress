@@ -19,9 +19,9 @@
 </script>
 <style scoped>
 .-no-data-box{
-    flex: 1;
     justify-content: center;
     align-items: center;
+    height: 100%;
 }
 .-no-data-content-box{
     align-items: center;
